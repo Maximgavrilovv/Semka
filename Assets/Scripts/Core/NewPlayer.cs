@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using RPG;
 
 /*Adds player functionality to a physics object*/
 
@@ -61,6 +62,21 @@ public class NewPlayer : PhysicsObject
     public int maxHealth;
     public int maxAmmo;
 
+    [Header("Stats")]
+    public int strength;
+    public int dexterity;
+    public int intelligence;
+    public int technique; //critical damage chance
+    public int skillPoints;
+    public int level;
+    public int experience;
+    List<int> requiredExperienceToLevelUp = new List<int>() 
+    {500, 1500, 3500, 5500, 8000, 14000, 21000, 30000, 40000, 55000, 75000}; 
+    public int damage => getAttackDamage();
+    public Weapon equipedWeapon;
+    public bool hasWeapon => equipedWeapon.damage == 0 ? false : true;
+
+
     [Header ("Sounds")]
     public AudioClip deathSound;
     public AudioClip equipSound;
@@ -95,6 +111,19 @@ public class NewPlayer : PhysicsObject
     private void Update()
     {
         ComputeVelocity();
+    }
+
+    public int getAttackDamage()
+    {
+        int damage = 1; //default
+        if (hasWeapon)
+        {
+            damage += equipedWeapon.damage;
+            if (equipedWeapon.type == "Melee") damage += strength;
+            else if (equipedWeapon.type == "Ranged") damage += dexterity;
+        } 
+        else damage += strength;
+        return damage;
     }
 
     protected void ComputeVelocity()

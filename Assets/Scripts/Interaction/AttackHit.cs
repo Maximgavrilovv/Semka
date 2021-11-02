@@ -15,7 +15,8 @@ public class AttackHit : MonoBehaviour
     private int targetSide = 1; //Is the attack target on the left or right side of this object?
     [SerializeField] private GameObject parent; //This must be specified manually, as some objects will have a parent that is several layers higher
     [SerializeField] private bool isBomb = false; //Is the object a bomb that blows up when touching the player?
-    private int hitPower = 5; 
+    private int playerDamage = NewPlayer.Instance.damage;
+    private int enemyDamage = 1;
 
     // Use this for initialization
     void Start()
@@ -44,7 +45,7 @@ public class AttackHit : MonoBehaviour
         {
             if (col.GetComponent<NewPlayer>() != null)
             {
-                NewPlayer.Instance.GetHurt(targetSide, hitPower);
+                NewPlayer.Instance.GetHurt(targetSide, enemyDamage);
                 if (isBomb) transform.parent.GetComponent<EnemyBase>().Die(); 
             }
         }
@@ -52,13 +53,13 @@ public class AttackHit : MonoBehaviour
         //Attack Enemies
         else if (attacksWhat == AttacksWhat.EnemyBase && col.GetComponent<EnemyBase>() != null)
         {
-            col.GetComponent<EnemyBase>().GetHurt(targetSide, hitPower);
+            col.GetComponent<EnemyBase>().GetHurt(targetSide, playerDamage);
         }
 
         //Attack Breakables
         else if (attacksWhat == AttacksWhat.EnemyBase && col.GetComponent<EnemyBase>() == null && col.GetComponent<Breakable>() != null)
         {
-            col.GetComponent<Breakable>().GetHurt(hitPower);
+            col.GetComponent<Breakable>().GetHurt(playerDamage);
         }
 
         //Blow up bombs if they touch walls
