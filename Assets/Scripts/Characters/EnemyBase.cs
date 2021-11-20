@@ -20,7 +20,6 @@ public class EnemyBase : MonoBehaviour
     [SerializeField] private int health = 3;
     public AudioClip hitSound;
     public bool isBomb;
-    public int damage = 1;
     [SerializeField] bool requirePoundAttack; //Requires the player to use the down attack to hurt
 
     void Start()

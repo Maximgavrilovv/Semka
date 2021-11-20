@@ -7,7 +7,7 @@ using UnityEngine;
 public class Collectable : MonoBehaviour
 {
 
-    enum ItemType { InventoryItem, Coin, Health, Ammo }; //Creates an ItemType category
+    enum ItemType { InventoryItem, Coin, Health, Ammo,Ukaine,Water }; //Creates an ItemType category
     [SerializeField] ItemType itemType; //Allows us to select what type of item the gameObject is in the inspector
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip bounceSound;
@@ -15,6 +15,7 @@ public class Collectable : MonoBehaviour
     [SerializeField] private int itemAmount;
     [SerializeField] private string itemName; //If an inventory item, what is its name?
     [SerializeField] private Sprite UIImage; //What image will be displayed if we collect an inventory item?
+    
 
     void Start()
     {
@@ -50,11 +51,11 @@ public class Collectable : MonoBehaviour
         }
         else if (itemType == ItemType.Health)
         {
-            if (NewPlayer.Instance.health < NewPlayer.Instance.maxHealth)
-            {
-                GameManager.Instance.hud.HealthBarHurt();
-                NewPlayer.Instance.health += itemAmount;
-            }
+            
+                // GameManager.Instance.hud.HealthBarHurt();
+                // NewPlayer.Instance.health += itemAmount;
+                NewPlayer.Instance.healthPotionCount++;
+            
         }
         else if (itemType == ItemType.Ammo)
         {
@@ -63,6 +64,13 @@ public class Collectable : MonoBehaviour
                 GameManager.Instance.hud.HealthBarHurt();
                 NewPlayer.Instance.ammo += itemAmount;
             }
+        }else if (itemType == ItemType.Ukaine)
+        {
+            //NewPlayer.Instance.ukaine += 2000;
+            NewPlayer.Instance.ukainePotionCount++;
+        }else if (itemType == ItemType.Water)
+        {
+            NewPlayer.Instance.waterPotionCount++;
         }
 
         GameManager.Instance.audioSource.PlayOneShot(collectSounds[Random.Range(0, collectSounds.Length)], Random.Range(.6f, 1f));

@@ -6,12 +6,13 @@ using UnityEngine;
 
 public class Startup : MonoBehaviour
 {
-
+    
     public bool dontDestroyOnLoad = false;
     
     // Use this for initialization
     void Awake()
     {
+       
         if (dontDestroyOnLoad)
         {
             DontDestroyOnLoad(gameObject);
@@ -19,6 +20,7 @@ public class Startup : MonoBehaviour
         if (GameObject.Find("Startup") != null && GameObject.Find("Startup").tag == "Startup")
         {
             Destroy(gameObject);
+            
         }
     }
 }

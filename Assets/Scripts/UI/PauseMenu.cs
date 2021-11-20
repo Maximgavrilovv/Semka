@@ -12,6 +12,7 @@ public class PauseMenu : MonoBehaviour
     [SerializeField] GameObject pauseMenu;
 
     // Use this for initialization
+    
     void OnEnable()
     {
         Cursor.visible = true;

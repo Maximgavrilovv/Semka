@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using RPG;
+using UnityEngine.UI; 
 
 /*Adds player functionality to a physics object*/
 
@@ -48,34 +48,55 @@ public class NewPlayer : PhysicsObject
     private float launch; //The float added to x and y moveSpeed. This is set with hurtLaunchPower, and is always brought back to zero
     [SerializeField] private float launchRecovery; //How slow should recovering from the launch be? (Higher the number, the longer the launch will last)
     public float maxSpeed = 7; //Max move speed
+    public float sprintSpeed = 12;
     public float jumpPower = 17;
     private bool jumping;
     private Vector3 origLocalScale;
     [System.NonSerialized] public bool pounded;
     [System.NonSerialized] public bool pounding;
     [System.NonSerialized] public bool shooting = false;
+    public bool hasGun=false;
+    public SpriteRenderer spriteRenderer;
+    //public Sprite MeleeSprite;
+    //public Sprite RangedSprite;
+    public Transform firePoint;
+    public GameObject bulletPrefab;
+    public Rigidbody2D rb;
+    private bool GoingRight = true;
+    public int dmg = 100;
+    private bool isDashing = false;
+    public float dashDistance = 15f;
+    public TrailRenderer trail;
+    private bool usedUlt;
+
+    public Camera camera;
+
+    public Image ukaineBar;
+
+    public bool sprinting = false;
+
+    public Weapon MeleeWeapon;
+    public Weapon RangedWeapon;
+
+    public int healthPotionCount = 0;
+    public int ukainePotionCount = 0;
+    public int waterPotionCount = 0;
+
+
+    public enum characters { }
+    
+
 
     [Header ("Inventory")]
     public float ammo;
     public int coins;
     public int health;
+    public int ukaine;
+    public int maxUkaine;
     public int maxHealth;
     public int maxAmmo;
-
-    [Header("Stats")]
-    public int strength;
-    public int dexterity;
-    public int intelligence;
-    public int technique; //critical damage chance
-    public int skillPoints;
-    public int level;
-    public int experience;
-    List<int> requiredExperienceToLevelUp = new List<int>() 
-    {500, 1500, 3500, 5500, 8000, 14000, 21000, 30000, 40000, 55000, 75000}; 
-    public int damage => getAttackDamage();
-    public Weapon equipedWeapon;
-    public bool hasWeapon => equipedWeapon.damage == 0 ? false : true;
-
+    public int maxStamina;
+    public int stamina;
 
     [Header ("Sounds")]
     public AudioClip deathSound;
@@ -92,10 +113,12 @@ public class NewPlayer : PhysicsObject
     public AudioClip outOfAmmoSound;
     public AudioClip stepSound;
     [System.NonSerialized] public int whichHurtSound;
+    public AudioClip KalmanUlt;
 
     void Start()
     {
-        Cursor.visible = false;
+        // Cursor.visible = false;
+        spriteRenderer.sprite = MeleeWeapon.icon;  
         SetUpCheatItems();
         health = maxHealth;
         animatorFunctions = GetComponent<AnimatorFunctions>();
@@ -111,19 +134,33 @@ public class NewPlayer : PhysicsObject
     private void Update()
     {
         ComputeVelocity();
-    }
-
-    public int getAttackDamage()
-    {
-        int damage = 1; //default
-        if (hasWeapon)
+        if (ukaine > 0 )
         {
-            damage += equipedWeapon.damage;
-            if (equipedWeapon.type == "Melee") damage += strength;
-            else if (equipedWeapon.type == "Ranged") damage += dexterity;
-        } 
-        else damage += strength;
-        return damage;
+            ukaine--;
+        }
+        if (ukaine >= 10000)
+        {
+            StartCoroutine(Die());
+
+            ukaine = 0;
+        }
+        if (stamina < maxStamina && !sprinting && !usedUlt||usedUlt&& stamina < maxStamina)
+        {
+            stamina += 4;
+        }
+        if (stamina > 0 && sprinting&& ukaine>1500)
+        {
+            if (!usedUlt)
+            {
+                stamina -= 12;
+            }
+            else
+            {
+                ukaine -= 12;
+            }
+        }
+       
+        
     }
 
     protected void ComputeVelocity()
@@ -143,29 +180,155 @@ public class NewPlayer : PhysicsObject
         //Movement, jumping, and attacking!
         if (!frozen)
         {
-            move.x = Input.GetAxis("Horizontal") + launch;
+            
+            move.x = Input.GetAxis("Horizontal") + launch; 
 
-            if (Input.GetButtonDown("Jump") && animator.GetBool("grounded") == true && !jumping)
+            if (Input.GetButtonDown("Jump") && animator.GetBool("grounded") == true && !jumping&&stamina>=1000 )
             {
-                animator.SetBool("pounded", false);
-                Jump(1f);
+                if (!jumping)
+                {
+                    if (!usedUlt && stamina >= 1000)
+                    {
+                        if (ukaine > 1500 )
+                        {
+                            stamina -= 1000;
+                        }
+                    }else if(usedUlt&& ukaine >= 1000)
+                    {
+                        ukaine -= 1000;
+                    }
+                    animator.SetBool("pounded", false);
+                    Jump(1f);
+                }
+                
+                
+                
+            }
+
+            //Dashing For Kalman
+            if (Input.GetKeyDown(KeyCode.Q) && stamina >= 1000 &&!isDashing)
+            {
+                float direction;
+                if (GoingRight)
+                {
+                    direction = 1;
+                }
+                else
+                {
+                    direction = -1;
+                }
+                //move.x = direction;
+                StartCoroutine(Dash(direction));
+                
+
+            }
+
+            //potions usage
+            if (Input.GetKeyDown(KeyCode.Alpha1) && healthPotionCount > 0)
+            {
+                this.health++;
+                GameManager.Instance.hud.HealthBarHurt();
+                healthPotionCount--;
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha2) && ukainePotionCount > 0)
+            {
+                ukaine += 2000;
+                stamina += (maxUkaine - ukaine) / 10;
+                if (stamina > maxStamina)
+                {
+                    stamina = 10000;
+                }
+                ukainePotionCount--;
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha3) && waterPotionCount > 0)
+            {
+                if (ukaine < 1000)
+                {
+                    ukaine = 0;
+                }
+                else
+                {
+                    ukaine -= 1000;
+                }
+                waterPotionCount--;
+            }
+
+
+                    if (Input.GetKeyDown(KeyCode.R)&&ukaine>7000)
+            {
+                StartCoroutine(Kalman_ult());
+            }
+            if (Input.GetKeyDown(KeyCode.G)&& hasGun==false)
+            {
+                spriteRenderer.sprite = RangedWeapon.icon;
+                hasGun = true;
+                animator.SetBool("hasGun", true);
+            }
+            else if (Input.GetKeyDown(KeyCode.G) && hasGun)
+            {
+                spriteRenderer.sprite = MeleeWeapon.icon;
+                hasGun = false;
+                animator.SetBool("hasGun", false);
+            }
+            
+            if (Input.GetKeyDown(KeyCode.LeftShift) )
+            {
+                if (usedUlt && ukaine >= 10 || !usedUlt && stamina >= 10)
+                {
+                    maxSpeed = sprintSpeed;
+                    sprinting = true;
+                }
+            }
+            if (Input.GetKeyUp(KeyCode.LeftShift)){
+                sprinting = false;
+                maxSpeed = 7;
             }
 
             //Flip the graphic's localScale
-            if (move.x > 0.01f)
+            if (move.x > 0.01f&&!GoingRight)
             {
-               graphic.transform.localScale = new Vector3(origLocalScale.x, transform.localScale.y, transform.localScale.z);
+                //old flipping system
+                //graphic.transform.localScale = new Vector3(origLocalScale.x, transform.localScale.y, transform.localScale.z);
+                graphic.transform.Rotate(0f, 180f, 0f);
+                GoingRight = true;
+               
             }
-            else if (move.x < -0.01f)
+            else if (move.x < -0.01f&&GoingRight)
             {
-               graphic.transform.localScale = new Vector3(-origLocalScale.x, transform.localScale.y, transform.localScale.z);
+                //graphic.transform.localScale = new Vector3(-origLocalScale.x, transform.localScale.y, transform.localScale.z);
+                graphic.transform.Rotate(0f, 180f, 0f);
+                GoingRight = false;
             }
 
             //Punch
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0)&&!hasGun)
             {
-                animator.SetTrigger("attack");
-                Shoot(false);
+                
+                if (ukaine > 1500 && stamina >= 300&&!usedUlt)
+                {
+                    stamina -= 300;
+                    animator.SetTrigger("attack");
+                    Shoot(false);
+                }
+                else if (usedUlt&&ukaine>=300)
+                {
+                    ukaine -= 300;
+                    animator.SetTrigger("attack");
+                    Shoot(false);
+                }else if(ukaine< 1500 || stamina >= 300)
+                {
+                    animator.SetTrigger("attack");
+                    Shoot(false);
+                }
+                
+                
+
+
+
+            }
+            else if(Input.GetMouseButtonDown(0) && hasGun&& ammo>0)
+            {
+                ShootGun();
             }
 
             //Secondary attack (currently shooting) with right click
@@ -220,6 +383,12 @@ public class NewPlayer : PhysicsObject
         }
     }
 
+    public void ShootGun()
+    {
+        Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
+        NewPlayer.Instance.ammo--;
+    }
+
     public void SetGroundType()
     {
         //If we want to add variable ground types with different sounds, it can be done here
@@ -249,7 +418,7 @@ public class NewPlayer : PhysicsObject
     }
 
 
-    public void GetHurt(int hurtDirection, int hitPower)
+    public void GetHurt(int hurtDirection, int hitPower,bool isBomb)
     {
         //If the player is not frozen (ie talking, spawning, etc), recovering, and pounding, get hurt!
         if (!frozen && !recoveryCounter.recovering && !pounding)
@@ -260,7 +429,10 @@ public class NewPlayer : PhysicsObject
             velocity.y = hurtLaunchPower.y;
             launch = hurtDirection * (hurtLaunchPower.x);
             recoveryCounter.counter = 0;
-
+            if (isBomb)
+            {
+                ukaine += 1000;
+            }
             if (health <= 0)
             {
                 StartCoroutine(Die());
@@ -340,6 +512,65 @@ public class NewPlayer : PhysicsObject
             JumpEffect();
             jumping = true;
         }
+    }
+
+    IEnumerator Dash (float direction)
+    {
+        isDashing = true;
+        trail.enabled = true;
+        
+        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.AddForce(new Vector2(dashDistance * direction, 0f), ForceMode2D.Impulse);
+        float gravity = rb.gravityScale;
+        rb.gravityScale = 0;
+        if (ukaine >= 1500)
+        {
+            stamina -= 1000;
+        }
+        
+        yield return new WaitForSeconds(0.5f);
+        trail.enabled = false;
+        yield return new WaitForSeconds(0.5f);
+        isDashing = false;
+        
+        rb.gravityScale = gravity;
+        
+
+    }
+
+    IEnumerator Kalman_ult()
+    {
+        int i=0;
+        audioSource.pitch = (Random.Range(1f, 1f));
+        GameManager.Instance.audioSource.PlayOneShot(KalmanUlt, 5f);
+        
+        while (i<5 &&ukaine>500) {
+            usedUlt = true;
+            cameraEffects.Shake(10000000, 0.5f);
+            
+            ukaineBar.color = Color.green;
+            camera.backgroundColor = Color.cyan;
+            yield return new WaitForSeconds(0.5f);
+            
+            cameraEffects.Shake(10000000, 0.5f);
+            camera.backgroundColor = Color.magenta;
+            yield return new WaitForSeconds(0.5f);
+            
+            cameraEffects.Shake(10000000, 0.5f);
+            camera.backgroundColor = Color.red;
+            yield return new WaitForSeconds(0.5f);
+            cameraEffects.Shake(10000000, 0.5f);
+            
+            camera.backgroundColor = Color.yellow;
+            yield return new WaitForSeconds(0.5f);
+            cameraEffects.Shake(10000000, 0.5f);
+
+            i++;
+
+        }
+        usedUlt = false;
+        camera.backgroundColor = Color.white;
+        ukaineBar.color = Color.magenta;
     }
 
     public void PlayStepSound()
